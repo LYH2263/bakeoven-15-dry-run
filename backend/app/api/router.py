@@ -11,6 +11,9 @@ from app.schemas.schemas import (
     GanttBlock,
     OvenOut,
     ProductOut,
+    TrialConflictOut,
+    TrialCreate,
+    TrialOut,
     WindowOut,
 )
 from app.services.oven_engine import (
@@ -77,6 +80,46 @@ def ovens(db: Session = Depends(get_db)):
 def batches(db: Session = Depends(get_db)):
     rows = db.scalars(select(Batch).order_by(Batch.start_min)).all()
     return [_batch_out(db, b) for b in rows]
+
+
+@api_router.post("/batches/trial", response_model=TrialOut)
+def trial_batch(body: TrialCreate, db: Session = Depends(get_db)):
+    """Dry-run: report overlaps for a hypothetical batch. Never writes batches or conflict logs."""
+    product = db.get(Product, body.product_id)
+    oven = db.get(Oven, body.oven_id)
+    if not product or not oven:
+        raise HTTPException(404, "产品或炉位不存在")
+    recipe = _recipe(product)
+    candidates = build_occupancies(oven.id, -1, body.start_min, recipe)
+    existing = _all_occupancies(db)
+    hits = find_conflicts(existing, candidates)
+    codes = {b.id: b.code for b in db.scalars(select(Batch)).all()}
+    conflicts = [
+        TrialConflictOut(
+            batch_id=ex.batch_id,
+            code=codes.get(ex.batch_id, f"#{ex.batch_id}"),
+            phase=ex.phase,
+            existing_start=ex.interval.start,
+            existing_end=ex.interval.end,
+            candidate_phase=cand.phase,
+            candidate_start=cand.interval.start,
+            candidate_end=cand.interval.end,
+        )
+        for ex, cand in hits
+    ]
+    phases = sorted({c.phase for c in conflicts})
+    opponents = list(dict.fromkeys(c.code for c in conflicts))
+    return TrialOut(
+        product_id=product.id,
+        oven_id=oven.id,
+        start_min=body.start_min,
+        would_overlap=bool(conflicts),
+        phases=phases,
+        opponents=opponents,
+        ferment_end=body.start_min + recipe.ferment_min,
+        bake_end=body.start_min + recipe.total,
+        conflicts=conflicts,
+    )
 
 
 @api_router.post("/batches", response_model=BatchOut)

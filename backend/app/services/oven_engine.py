@@ -11,6 +11,10 @@ class Interval:
     end: int  # exclusive
 
     def overlaps(self, other: "Interval") -> bool:
+        # An empty half-open interval [s, s) occupies no time and conflicts with nothing
+        # (e.g. a zero-minute ferment stage must not count as overlapping).
+        if self.start >= self.end or other.start >= other.end:
+            return False
         return self.start < other.end and other.start < self.end
 
 

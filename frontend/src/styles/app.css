@@ -248,6 +248,48 @@ select, input, .gantt-deck button, .toolbar button {
 .mono { font-family: "IBM Plex Mono", monospace; }
 .err { color: #ff9b7a; } .ok { color: #e8c48a; }
 
+/* 试算（dry-run）：与创建结果区分开的虚线面板 */
+.toolbar button.btn-trial {
+  background: transparent;
+  color: var(--bake-copper);
+  border: 1px dashed var(--bake-copper);
+}
+.trial-panel {
+  border: 1px dashed var(--bake-copper);
+  border-left: 4px solid var(--bake-copper);
+  border-radius: 4px;
+  background: #1c140e;
+  padding: .6rem .8rem;
+  margin-bottom: .8rem;
+  max-width: 560px;
+  font-size: .88rem;
+}
+.trial-panel--hit { border-color: #ff8a5a; border-left-color: #ff6b4a; }
+.trial-panel--ok { border-color: #8ada60; border-left-color: #8ada60; }
+.trial-panel-head {
+  font-weight: 800;
+  letter-spacing: .08em;
+  color: var(--bake-copper);
+  margin-bottom: .4rem;
+}
+.trial-panel--hit .trial-panel-head { color: #ffb090; }
+.trial-panel--ok .trial-panel-head { color: #b8e090; }
+.trial-panel-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .25rem .9rem;
+}
+.trial-panel-grid > span { color: var(--bake-muted); }
+.trial-hits {
+  margin: .5rem 0 0;
+  padding-left: 1.1rem;
+  color: #ffd0c0;
+  font-size: .8rem;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+}
+
 .gantt { display: flex; flex-direction: column; gap: .65rem; }
 .gantt-row {
   display: grid;
