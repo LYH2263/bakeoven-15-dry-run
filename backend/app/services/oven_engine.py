@@ -38,12 +38,14 @@ def build_occupancies(
     start_min: int,
     recipe: RecipeDurations,
 ) -> list[Occupancy]:
-    ferment = Interval(start_min, start_min + recipe.ferment_min)
-    bake = Interval(ferment.end, ferment.end + recipe.bake_min)
-    return [
-        Occupancy(oven_id, ferment, "ferment", batch_id),
-        Occupancy(oven_id, bake, "bake", batch_id),
-    ]
+    """发酵紧接烘烤；时长为 0 的阶段不占炉（如发酵 0 分钟的产品）。"""
+    out: list[Occupancy] = []
+    cursor = start_min
+    for phase, minutes in (("ferment", recipe.ferment_min), ("bake", recipe.bake_min)):
+        if minutes > 0:
+            out.append(Occupancy(oven_id, Interval(cursor, cursor + minutes), phase, batch_id))
+        cursor += minutes
+    return out
 
 
 def find_conflicts(existing: list[Occupancy], candidates: list[Occupancy]) -> list[tuple[Occupancy, Occupancy]]:

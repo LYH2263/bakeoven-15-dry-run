@@ -247,6 +247,60 @@ select, input, .gantt-deck button, .toolbar button {
 }
 .mono { font-family: "IBM Plex Mono", monospace; }
 .err { color: #ff9b7a; } .ok { color: #e8c48a; }
+.muted { color: var(--bake-muted); }
+
+/* 试算（只读预检）面板：与创建成功/失败的单行提示明确区分 */
+.toolbar .btn-preview {
+  background: transparent;
+  color: var(--bake-copper);
+  border: 1px solid var(--bake-copper);
+  font-weight: 700;
+}
+.toolbar .btn-preview:hover:not(:disabled) { background: rgba(242, 184, 128, .12); }
+.toolbar button:disabled { opacity: .55; cursor: default; }
+
+.preview-panel {
+  border: 1px solid #5a4030;
+  border-left: 4px solid var(--bake-copper);
+  border-radius: 2px 8px 8px 2px;
+  background: #1c150f;
+  padding: .65rem .85rem;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+.preview-panel--ok { border-left-color: #8ada60; }
+.preview-panel--hit { border-left-color: #ff6b4a; background: #241410; }
+.preview-head { display: flex; gap: .75rem; align-items: baseline; flex-wrap: wrap; }
+.preview-tag {
+  font-size: .68rem;
+  letter-spacing: .12em;
+  color: var(--bake-muted);
+  border: 1px dashed #6a5040;
+  border-radius: 2px;
+  padding: .1rem .4rem;
+}
+.preview-verdict-ok { color: #b8e090; font-weight: 700; font-size: .9rem; }
+.preview-verdict-hit { color: #ff9b7a; font-weight: 700; font-size: .9rem; }
+.preview-grid {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: .3rem .75rem;
+  font-size: .85rem;
+  align-items: start;
+}
+.preview-hit {
+  display: inline-block;
+  margin: 0 .75rem .2rem 0;
+  padding: .12rem .45rem;
+  background: #3a1810;
+  border: 1px solid #804030;
+  border-radius: 2px;
+  color: #ffd0c0;
+  font-size: .8rem;
+}
+.preview-note { font-size: .7rem; color: #8a7060; }
 
 .gantt { display: flex; flex-direction: column; gap: .65rem; }
 .gantt-row {

@@ -7,9 +7,11 @@ from app.models.models import Batch, ConflictLog, Oven, Product
 from app.schemas.schemas import (
     BatchCreate,
     BatchOut,
+    BatchPreviewOut,
     ConflictOut,
     GanttBlock,
     OvenOut,
+    PreviewConflictOut,
     ProductOut,
     WindowOut,
 )
@@ -23,9 +25,37 @@ from app.services.oven_engine import (
 
 api_router = APIRouter()
 
+PHASE_LABELS = {"ferment": "发酵", "bake": "烘烤"}
+
 
 def _recipe(p: Product) -> RecipeDurations:
     return RecipeDurations(p.ferment_min, p.bake_min)
+
+
+def _hhmm(m: int) -> str:
+    return f"{m // 60:02d}:{m % 60:02d}"
+
+
+def _evaluate(
+    db: Session, product: Product, oven: Oven, start_min: int
+) -> tuple[list[PreviewConflictOut], list[tuple[Occupancy, Occupancy]]]:
+    """试算：不落库。返回（对外冲突明细, 原始命中对）。"""
+    recipe = _recipe(product)
+    candidates = build_occupancies(oven.id, -1, start_min, recipe)
+    hits = find_conflicts(_all_occupancies(db), candidates)
+    conflicts: list[PreviewConflictOut] = []
+    for ex, cand in hits:
+        opp = db.get(Batch, ex.batch_id)
+        conflicts.append(
+            PreviewConflictOut(
+                opponent_batch_id=ex.batch_id,
+                opponent_code=opp.code if opp else f"#{ex.batch_id}",
+                phase=cand.phase,
+                opponent_phase=ex.phase,
+                interval=f"[{_hhmm(cand.interval.start)},{_hhmm(cand.interval.end)})",
+            )
+        )
+    return conflicts, hits
 
 
 def _all_occupancies(db: Session) -> list[Occupancy]:
@@ -79,22 +109,40 @@ def batches(db: Session = Depends(get_db)):
     return [_batch_out(db, b) for b in rows]
 
 
+@api_router.post("/batches/preview", response_model=BatchPreviewOut)
+def preview_batch(body: BatchCreate, db: Session = Depends(get_db)):
+    """试算：只读，不新增批次、不写冲突日志。"""
+    product = db.get(Product, body.product_id)
+    oven = db.get(Oven, body.oven_id)
+    if not product or not oven:
+        raise HTTPException(404, "产品或炉位不存在")
+    recipe = _recipe(product)
+    conflicts, _hits = _evaluate(db, product, oven, body.start_min)
+    ferment_end = body.start_min + recipe.ferment_min
+    return BatchPreviewOut(
+        product_id=product.id,
+        oven_id=oven.id,
+        start_min=body.start_min,
+        ferment_end=ferment_end,
+        bake_end=ferment_end + recipe.bake_min,
+        overlaps=bool(conflicts),
+        conflicts=conflicts,
+    )
+
+
 @api_router.post("/batches", response_model=BatchOut)
 def create_batch(body: BatchCreate, db: Session = Depends(get_db)):
     product = db.get(Product, body.product_id)
     oven = db.get(Oven, body.oven_id)
     if not product or not oven:
         raise HTTPException(404, "产品或炉位不存在")
-    recipe = _recipe(product)
-    candidates = build_occupancies(oven.id, -1, body.start_min, recipe)
-    existing = _all_occupancies(db)
-    hits = find_conflicts(existing, candidates)
     code = body.code or f"BO-{body.start_min}"
+    conflicts, hits = _evaluate(db, product, oven, body.start_min)
     if hits:
-        ex, cand = hits[0]
+        first = conflicts[0]
         detail = (
-            f"与批次#{ex.batch_id} 的 {ex.phase} 段重叠："
-            f"[{cand.interval.start},{cand.interval.end})"
+            f"与批次{first.opponent_code} 的 {PHASE_LABELS[first.opponent_phase]} 段重叠："
+            f"{first.interval}"
         )
         db.add(ConflictLog(batch_code=code, oven_id=oven.id, detail=detail))
         db.commit()

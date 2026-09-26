@@ -38,6 +38,26 @@ class BatchCreate(BaseModel):
     code: str | None = None
 
 
+class PreviewConflictOut(BaseModel):
+    """一次重叠命中：新批次的哪个阶段撞上对手批次的哪个阶段。"""
+
+    opponent_batch_id: int
+    opponent_code: str
+    phase: str  # 新批次发生重叠的阶段：ferment | bake
+    opponent_phase: str
+    interval: str  # 新批次该阶段的半开区间，形如 "[09:05,09:40)"
+
+
+class BatchPreviewOut(BaseModel):
+    product_id: int
+    oven_id: int
+    start_min: int
+    ferment_end: int
+    bake_end: int
+    overlaps: bool
+    conflicts: list[PreviewConflictOut]
+
+
 class GanttBlock(BaseModel):
     batch_id: int
     code: str

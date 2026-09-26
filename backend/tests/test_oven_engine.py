@@ -8,6 +8,18 @@ from app.services.oven_engine import (
 )
 
 
+def test_zero_minute_phase_does_not_occupy():
+    # 发酵 0 分钟的产品只占烘烤段，零宽区间不应制造假重叠。
+    recipe = RecipeDurations(0, 30)
+    occs = build_occupancies(1, 9, 600, recipe)
+    assert [(o.phase, o.interval) for o in occs] == [("bake", Interval(600, 630))]
+    existing = [Occupancy(1, Interval(580, 615), "bake", 1)]
+    assert find_conflicts(existing, occs)
+    # 仅首尾相接（半开）不算重叠。
+    assert find_conflicts([Occupancy(1, Interval(570, 600), "bake", 1)], occs) == []
+
+
+
 def test_half_open_no_touch_conflict():
     a = Occupancy(1, Interval(0, 30), "bake", 1)
     b = Occupancy(1, Interval(30, 60), "bake", 2)
